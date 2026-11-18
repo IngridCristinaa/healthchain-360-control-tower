@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HealthChain 360° | Global Healthcare Supply Chain Control Tower</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f4f7f7; color: #0f172a; }
+    
+    /* Sidebar Deep Forest Teal */
+    .sidebar {
+      width: 256px;
+      background: linear-gradient(180deg, #062824 0%, #093832 100%);
+      transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar.collapsed { width: 74px; }
+    .sidebar.collapsed .nav-label,
+    .sidebar.collapsed .brand-text,
+    .sidebar.collapsed .section-title,
+    .sidebar.collapsed .status-text { display: none; }
+    .sidebar.collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+    .sidebar.collapsed .brand-wrap { justify-content: center; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: #a7c7c2;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.18s ease;
+    }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
+    .nav-item.active {
+      background: linear-gradient(90deg, #0d9488 0%, #059669 100%);
+      color: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+    }
+
+    /* Cards Clínicos */
+    .clinical-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .clinical-card:hover {
+      border-color: #0d9488;
+      box-shadow: 0 6px 18px rgba(13, 148, 136, 0.08);
+    }
+
+    /* Card Gradiente Turquesa-Ciano */
+    .teal-gradient-card {
+      background: linear-gradient(135deg, #2dd4bf 0%, #0ea5e9 55%, #0284c7 100%);
+      color: #ffffff;
+      box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.35);
+    }
+
+    /* Tooltip Executivo "?" */
+    .kpi-info-wrap { position: relative; display: inline-flex; }
+    .kpi-tooltip {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      top: 135%;
+      right: 0;
+      width: 315px;
+      background: #062824;
+      color: #f8fafc;
+      border: 1px solid #14b8a6;
+      box-shadow: 0 20px 38px -10px rgba(6, 40, 36, 0.45);
+      border-radius: 12px;
+      padding: 13px 15px;
+      z-index: 70;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      transform: translateY(-4px);
+      pointer-events: none;
+      text-align: left;
+    }
+    .kpi-info-wrap:hover .kpi-tooltip { visibility: visible; opacity: 1; transform: translateY(0); }
+    .kpi-tooltip-left { right: auto; left: 0; }
+
+    /* Scrollbar Horizontal Elegante */
+    .table-scroll::-webkit-scrollbar { height: 8px; }
+    .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+    .table-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+    .table-scroll::-webkit-scrollbar-thumb:hover { background: #0d9488; }
+  </style>
+</head>
+<body class="min-h-screen flex">
+
+  <!-- SIDEBAR RETRÁTIL (DEEP FOREST TEAL) -->
+  <aside id="sidebar" class="sidebar shrink-0 flex flex-col justify-between p-3.5 sticky top-0 h-screen z-40 select-none">
+    <div class="space-y-6">
+      <div class="brand-wrap flex items-center justify-between gap-2 pt-1">
+        <div class="flex items-center gap-3 overflow-hidden">
+          <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-teal-400 to-emerald-300 flex items-center justify-center text-[#062824] font-extrabold text-base shadow-md">
+            H+
+          </div>
+          <div class="brand-text leading-tight">
+            <span class="text-white font-extrabold text-sm tracking-tight block">HealthChain 360°</span>
+            <span class="text-[10px] uppercase tracking-widest text-teal-300/80 font-semibold">Supply Control Tower</span>
+          </div>
+        </div>
+        <button onclick="toggleSidebar()" title="Recolher / Expandir Menu" class="w-7 h-7 shrink-0 rounded-lg bg-white/10 hover:bg-white/20 text-teal-100 flex items-center justify-center text-xs transition">
+          <span id="toggleIcon">«</span>
+        </button>
+      </div>
+
+      <nav class="space-y-1.5">
+        <p class="section-title text-[10px] font-bold uppercase tracking-widest text-teal-400/70 px-3 pb-1">Inteligência Clínica</p>
+        
+        <button onclick="setTab('visao1')" id="nav-visao1" title="Visão Executiva & KPIs" class="nav-item active w-full">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="nav-label">Visão executiva</span>
+        </button>
+
+        <button onclick="setTab('visao2')" id="nav-visao2" title="Risco Assistencial & Equivalência" class="nav-item w-full">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <span class="nav-label">Risco assistencial</span>
+        </button>
+
+        <button onclick="setTab('visao3')" id="nav-visao3" title="Auditoria de Preços & Compliance" class="nav-item w-full">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          <span class="nav-label">Auditoria de preços</span>
+        </button>
+
+        <button onclick="setTab('visao4')" id="nav-visao4" title="Performance 50 Fornecedores" class="nav-item w-full">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          <span class="nav-label">Performance fornecedores</span>
+        </button>
+
+        <button onclick="setTab('visao5')" id="nav-visao5" title="Orçamento & Simulação Financeira" class="nav-item w-full">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/></svg>
+          <span class="nav-label">Orçamento & simulação</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center gap-2.5">
+      <span id="dotStatus" class="w-2.5 h-2.5 shrink-0 rounded-full bg-amber-400 animate-pulse"></span>
+      <div class="status-text overflow-hidden">
+        <p id="badgeStatus" class="text-[11px] font-semibold text-white truncate">Sincronizando...</p>
+        <p class="text-[10px] text-teal-300/70 truncate">Supabase Cloud API</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ÁREA PRINCIPAL -->
+  <div class="flex-1 min-w-0 flex flex-col">
+
+    <!-- Topbar & Filtros -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3.5 sticky top-0 z-30">
+      <div class="max-w-[1440px] mx-auto flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+            <span>CORPORATIVO</span>
+            <span>&rsaquo;</span>
+            <span id="breadcrumbAtual" class="text-teal-700 font-bold">Visão executiva</span>
+          </div>
+          <h1 id="tituloPagina" class="text-base md:text-lg font-extrabold text-slate-900">Torre de Controle de Suprimentos Hospitalares</h1>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="fEspecie" class="bg-slate-50 border border-slate-200 hover:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none">
+            <option value="Todas">Espécie: Todas</option>
+            <option value="Medicamentos">Medicamentos</option>
+            <option value="Mat. Médico-Hospitalar">Mat. Médico-Hospitalar</option>
+            <option value="OPME">OPME</option>
+            <option value="Laboratório">Laboratório</option>
+            <option value="Nutrição">Nutrição</option>
+          </select>
+          <select id="fCriticidade" class="bg-slate-50 border border-slate-200 hover:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none">
+            <option value="Todas">Criticidade: Todas</option>
+            <option value="X">Classe X (Vital / UTI)</option>
+            <option value="Y">Classe Y (Essencial)</option>
+            <option value="Z">Classe Z (Não Crítico)</option>
+          </select>
+          <select id="fABC" class="bg-slate-50 border border-slate-200 hover:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none">
+            <option value="Todas">Curva ABC: Todas</option>
+            <option value="A">Curva A (80% Valor)</option>
+            <option value="B">Curva B (15% Valor)</option>
+            <option value="C">Curva C (5% Valor)</option>
+          </select>
+          <select id="fCentro" class="bg-slate-50 border border-slate-200 hover:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none">
+            <option value="Todos">Centro Despesa: Todos</option>
+            <option value="Centro Cirúrgico">Centro Cirúrgico</option>
+            <option value="UTI Adulto">UTI Adulto</option>
+            <option value="Pronto-Socorro">Pronto-Socorro</option>
+            <option value="Farmácia Central">Farmácia Central</option>
+            <option value="Oncologia">Oncologia</option>
+          </select>
+          <button onclick="limparFiltros()" class="text-xs font-semibold text-teal-700 hover:text-teal-900 px-2 py-1.5">Limpar</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-[1440px] w-full mx-auto px-6 py-6 space-y-6">
+
+      <!-- =================================================================== -->
+      <!-- PÁGINA 1: VISÃO EXECUTIVA                                           -->
+      <!-- =================================================================== -->
+      <div id="view-visao1" class="space-y-6">
+        
+        <!-- Pipeline de Abastecimento -->
+        <div>
+          <div class="flex justify-between items-center mb-2.5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Pipeline de Abastecimento Ponta a Ponta</h2>
+            <span id="resumoBaseLabel" class="text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">1.000 SKUs • 50 Fornecedores</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="clinical-card p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <p class="text-xs font-semibold text-slate-500">01. Solicitações de Compra (SC)</p>
+                <p id="kpiSCVal" class="text-xl font-extrabold text-slate-900 mt-1">R$ 0</p>
+                <span id="kpiSCQtd" class="text-xs text-slate-500">0 unid. em cotação</span>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">Pré-compra</span>
+            </div>
+            <div class="clinical-card p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <p class="text-xs font-semibold text-slate-500">02. Ordens de Compra (OC / Trâns.)</p>
+                <p id="kpiOCVal" class="text-xl font-extrabold text-slate-900 mt-1">R$ 0</p>
+                <span id="kpiOCQtd" class="text-xs text-slate-500">0 unid. abastecendo</span>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200">Em trânsito</span>
+            </div>
+            <div class="clinical-card p-4 rounded-xl flex justify-between items-center">
+              <div>
+                <p class="text-xs font-semibold text-slate-500">03. Inventário Físico Atual</p>
+                <p id="kpiEstoqueVal" class="text-xl font-extrabold text-teal-700 mt-1">R$ 0</p>
+                <span id="kpiEstoqueQtd" class="text-xs text-slate-500">0 unid. • 0 SKUs</span>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">Almoxarifado & SAT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 14 KPIs Consolidados (Módulos Operacional, Tático, Estratégico e Inventário) -->
+        <div>
+          <div class="flex justify-between items-center mb-2.5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Indicadores Consolidados (Módulos Operacional, Tático, Estratégico & Inventário • Passe o mouse no "?")</h2>
+          </div>
+          <div id="grid13KPIs" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3"></div>
+        </div>
+
+        <!-- LINHA 1 DE GRÁFICOS: Card Gradiente Turquesa + Anel de Resiliência + Anéis Concêntricos -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Card Gradiente Turquesa -->
+          <div class="lg:col-span-5 teal-gradient-card p-5 rounded-2xl flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center">
+                <span class="text-[10px] font-bold uppercase tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full">Tendência Mensal</span>
+                <span id="badgeTrendOTIF" class="text-xs font-extrabold bg-white text-sky-700 px-2.5 py-0.5 rounded-full">OTIF Atual</span>
+              </div>
+              <h3 class="text-base font-extrabold text-white mt-2">Evolução Mensal de OTIF & Conformidade</h3>
+              <p class="text-xs text-white/85">Acompanhamento mensal de entregas no prazo e completas.</p>
+            </div>
+            <div id="chartGradientTrend" class="w-full h-56 mt-2"></div>
+          </div>
+
+          <!-- Card Anel Circular de Resiliência -->
+          <div class="lg:col-span-3 clinical-card p-5 rounded-2xl flex flex-col justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Índice de Resiliência</h3>
+              <p class="text-xs text-slate-500">Score composto de prontidão contra rupturas e choques de demanda.</p>
+            </div>
+            <div id="chartDonutResiliencia" class="w-full h-56"></div>
+            <p class="text-[11px] text-center text-slate-500 font-medium">Meta Corporativa: <strong class="text-teal-700">&ge; 85%</strong></p>
+          </div>
+
+          <!-- Card Anéis Concêntricos de Governança -->
+          <div class="lg:col-span-4 clinical-card p-5 rounded-2xl flex flex-col justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Governança & Disponibilidade (%)</h3>
+              <p class="text-xs text-slate-500">Comparativo radial entre Fill Rate, Spend sob Gestão, Contract Compliance e OTIF.</p>
+            </div>
+            <div id="chartConcentricRings" class="w-full h-60"></div>
+          </div>
+        </div>
+
+        <!-- LINHA 2 DE GRÁFICOS: Barras Horizontais de Spend/Fill Rate + Série Histórica Multi-Linha -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="clinical-card p-5 rounded-2xl">
+            <h3 class="text-sm font-bold text-slate-900">Spend por Espécie Hospitalar & Fill Rate por Classe ABC</h3>
+            <p class="text-xs text-slate-500 mb-2">Distribuição financeira por macro-categoria com rótulos internos.</p>
+            <div id="chartHorizontalBars" class="w-full h-72"></div>
+          </div>
+          <div class="clinical-card p-5 rounded-2xl">
+            <h3 class="text-sm font-bold text-slate-900">Evolução Comparativa: Planejamento vs. Emergências vs. Compliance</h3>
+            <p class="text-xs text-slate-500 mb-2">Série histórica mensal dos indicadores táticos e operacionais.</p>
+            <div id="chartMultiLineTrend" class="w-full h-72"></div>
+          </div>
+        </div>
+
+        <!-- LINHA 3: Cobertura Atual vs Projetada em Largura Total -->
+        <div class="clinical-card p-5 rounded-2xl">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Autonomia de Estoque por Espécie: Cobertura Atual vs. Projetada com Chegada de OCs</h3>
+              <p class="text-xs text-slate-500">Comparativo de dias de cobertura física atual, cobertura projetada e meta de segurança clínica (30 dias).</p>
+            </div>
+            <span class="text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">Meta Segurança Clínica: 30 dias</span>
+          </div>
+          <div id="chartCoberturaEspecie" class="w-full h-72"></div>
+        </div>
+
+        <!-- Tabela Radar (15 itens + Barra de Rolagem Lateral) -->
+        <div class="clinical-card p-5 rounded-2xl">
+          <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Radar de Decisão de Compra & Follow-Up (Top 15 Críticos)</h3>
+              <p class="text-xs text-slate-500">Exibindo os 15 itens mais urgentes • Role horizontalmente para ver todas as colunas.</p>
+            </div>
+            <input id="buscaSku" type="text" placeholder="Buscar SKU ou descrição..." class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs w-64 focus:outline-none focus:border-teal-500" />
+          </div>
+          <div class="table-scroll overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-[1150px] w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3.5">SKU</th>
+                  <th class="py-3 px-3.5">Descrição do Item</th>
+                  <th class="py-3 px-3.5">Espécie / Centro</th>
+                  <th class="py-3 px-3.5">ABC-XYZ</th>
+                  <th class="py-3 px-3.5">Estoque Atual</th>
+                  <th class="py-3 px-3.5">Custo Médio</th>
+                  <th class="py-3 px-3.5">CMD</th>
+                  <th class="py-3 px-3.5">Cob. Atual</th>
+                  <th class="py-3 px-3.5">Em SC / OC</th>
+                  <th class="py-3 px-3.5">Cob. Projetada</th>
+                  <th class="py-3 px-3.5">Quando / Qtd Comprar</th>
+                  <th class="py-3 px-3.5">Semáforo Follow-Up & Assistência</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyRadar" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- PÁGINA 2: RISCO ASSISTENCIAL                                        -->
+      <!-- =================================================================== -->
+      <div id="view-visao2" class="hidden space-y-6">
+        <div id="kpis-visao2" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="clinical-card p-5 rounded-xl flex flex-col justify-between">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-md">Horizonte de Antecipação</span>
+              <h3 class="text-base font-bold text-slate-900 mt-3">Janela de Alerta Assistencial</h3>
+              <p class="text-xs text-slate-500 mt-1">Defina com quantos dias de antecedência a Farmácia Clínica e a UTI devem ser notificadas antes da ruptura.</p>
+            </div>
+            <div class="mt-6 bg-slate-50 border border-slate-200 p-4 rounded-xl">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-semibold text-slate-600">Antecedência configurada:</span>
+                <span id="lblDiasAlerta" class="text-lg font-extrabold text-teal-700">7 dias</span>
+              </div>
+              <input id="sliderDiasAlerta" type="range" min="3" max="20" value="7" class="w-full accent-teal-600 cursor-pointer" />
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>3 dias (Urgente)</span>
+                <span>10 dias</span>
+                <span>20 dias (Preventivo)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 clinical-card p-5 rounded-xl">
+            <h3 class="text-sm font-bold text-slate-900">Projeção de Ruptura Assistencial por Centro de Despesa</h3>
+            <p class="text-xs text-slate-500 mb-2">Quantidade de SKUs críticos descobertos vs. mitigados por pedidos em trânsito.</p>
+            <div id="chartRiscoCentro" class="w-full h-64"></div>
+          </div>
+        </div>
+
+        <div class="clinical-card p-5 rounded-xl">
+          <div class="mb-3">
+            <h3 class="text-sm font-bold text-slate-900">Matriz de Contingência Clínica (Top 15 Itens em Alerta)</h3>
+            <p class="text-xs text-slate-500">Exibindo os 15 itens mais críticos • Role horizontalmente para ver o SKU Equivalente homologado.</p>
+          </div>
+          <div class="table-scroll overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-[1100px] w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3.5">Prioridade</th>
+                  <th class="py-3 px-3.5">SKU</th>
+                  <th class="py-3 px-3.5">Descrição</th>
+                  <th class="py-3 px-3.5">Setor Impactado</th>
+                  <th class="py-3 px-3.5">Estoque</th>
+                  <th class="py-3 px-3.5">Ruptura em</th>
+                  <th class="py-3 px-3.5">Previsão Chegada OC</th>
+                  <th class="py-3 px-3.5">Janela Descoberta</th>
+                  <th class="py-3 px-3.5">SKU Equivalente Homologado</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyAssistencial" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- PÁGINA 3: AUDITORIA DE PREÇOS & COMPLIANCE                          -->
+      <!-- =================================================================== -->
+      <div id="view-visao3" class="hidden space-y-6">
+        <div id="kpis-visao3" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div class="clinical-card p-5 rounded-xl">
+          <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Impacto Financeiro de Sobrepreço no Mesmo Mês por Espécie & Curva ABC</h3>
+              <p class="text-xs text-slate-500">Perda acumulada por aquisições do mesmo SKU com preços unitários divergentes dentro da mesma competência.</p>
+            </div>
+            <span class="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">Auditoria Anti-Fragmentação</span>
+          </div>
+          <div id="chartSobreprecoEspecie" class="w-full h-72"></div>
+        </div>
+
+        <div class="clinical-card p-5 rounded-xl">
+          <div class="mb-3">
+            <h3 class="text-sm font-bold text-slate-900">Ranking de Maior Variação de Preço por Item, Fornecedores & Período (Top 15)</h3>
+            <p class="text-xs text-slate-500">Exibindo os 15 itens com maior variação/impacto • Identifica fornecedor menor preço, maior preço e datas no período.</p>
+          </div>
+          <div class="table-scroll overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-[1320px] w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3.5">Rank</th>
+                  <th class="py-3 px-3.5">Período / Datas Compra</th>
+                  <th class="py-3 px-3.5">SKU & Item</th>
+                  <th class="py-3 px-3.5">Espécie / Curva</th>
+                  <th class="py-3 px-3.5">Fornecedor Menor Preço</th>
+                  <th class="py-3 px-3.5">Menor Preço</th>
+                  <th class="py-3 px-3.5">Fornecedor Maior Preço</th>
+                  <th class="py-3 px-3.5">Maior Preço</th>
+                  <th class="py-3 px-3.5">Variação %</th>
+                  <th class="py-3 px-3.5 text-right">Impacto Financeiro</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyPrecos" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- PÁGINA 4: PERFORMANCE 50 FORNECEDORES                               -->
+      <!-- =================================================================== -->
+      <div id="view-visao4" class="hidden space-y-6">
+        <div id="kpis-visao4" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="clinical-card p-5 rounded-xl">
+            <h3 class="text-sm font-bold text-slate-900">Top 15 Fornecedores que Mais Atrasam (Dias além do SLA)</h3>
+            <p class="text-xs text-slate-500 mb-2">Ranking entre os 50 fornecedores homologados.</p>
+            <div id="chartFornAtraso" class="w-full h-80"></div>
+          </div>
+          <div class="clinical-card p-5 rounded-xl">
+            <h3 class="text-sm font-bold text-slate-900">Top 15 Fornecedores com Maior Entrega Parcial (%)</h3>
+            <p class="text-xs text-slate-500 mb-2">Percentual de OCs entregues com corte de quantidade.</p>
+            <div id="chartFornParcial" class="w-full h-80"></div>
+          </div>
+        </div>
+
+        <div class="clinical-card p-5 rounded-xl">
+          <h3 class="text-sm font-bold text-slate-900 mb-1">Scorecard Executivo de Fornecedores (Top 15 Críticos)</h3>
+          <p class="text-xs text-slate-500 mb-3">Exibindo os 15 fornecedores com maior risco operacional • Role horizontalmente para ver SLA, Estabilidade e ANVISA.</p>
+          <div class="table-scroll overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-[1050px] w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3.5">ID</th>
+                  <th class="py-3 px-3.5">Fornecedor</th>
+                  <th class="py-3 px-3.5">Categoria</th>
+                  <th class="py-3 px-3.5">Status ANVISA</th>
+                  <th class="py-3 px-3.5">SLA Contratado</th>
+                  <th class="py-3 px-3.5">Atraso Médio</th>
+                  <th class="py-3 px-3.5">Desvio Padrão LT</th>
+                  <th class="py-3 px-3.5">Entrega Parcial %</th>
+                  <th class="py-3 px-3.5">OTIF Fornecedor</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyFornecedores" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- PÁGINA 5: ORÇAMENTO & SIMULADOR DE PREVISÃO ORÇAMENTÁRIA            -->
+      <!-- =================================================================== -->
+      <div id="view-visao5" class="hidden space-y-6">
+        <div id="kpis-visao5" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+        <!-- Simulador de Previsão Orçamentária -->
+        <div class="clinical-card p-5 rounded-xl border-teal-500/50">
+          <div class="mb-4">
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-0.5 rounded">Simulador de Teto Orçamentário</span>
+            <h3 class="text-base font-bold text-slate-900 mt-1.5">Verificador de Estouro Orçamentário para os Próximos X Dias</h3>
+            <p class="text-xs text-slate-500">Informe sua previsão de verba disponível e o horizonte em dias para simular se a demanda assistencial + OCs em aberto vão estourar o orçamento.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+            <div class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <label class="text-[11px] font-bold text-slate-600 block mb-1">Previsão Orçamentária (R$):</label>
+                <input id="inputOrcPrevisto" type="number" value="8500000" step="100000" class="w-full bg-white border border-slate-300 focus:border-teal-600 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none" />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-600 block mb-1">Horizonte (Próximos X dias):</label>
+                <input id="inputDiasOrc" type="number" value="30" min="1" max="365" class="w-full bg-white border border-slate-300 focus:border-teal-600 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none" />
+              </div>
+              <div class="sm:col-span-2 flex flex-wrap gap-2 pt-1">
+                <button type="button" onclick="setHorizonteOrc(15)" class="text-[11px] bg-white hover:bg-teal-50 border border-slate-200 px-2.5 py-1 rounded font-semibold text-slate-600">15 dias</button>
+                <button type="button" onclick="setHorizonteOrc(30)" class="text-[11px] bg-white hover:bg-teal-50 border border-slate-200 px-2.5 py-1 rounded font-semibold text-slate-600">30 dias</button>
+                <button type="button" onclick="setHorizonteOrc(60)" class="text-[11px] bg-white hover:bg-teal-50 border border-slate-200 px-2.5 py-1 rounded font-semibold text-slate-600">60 dias</button>
+                <button type="button" onclick="setHorizonteOrc(90)" class="text-[11px] bg-white hover:bg-teal-50 border border-slate-200 px-2.5 py-1 rounded font-semibold text-slate-600">90 dias</button>
+              </div>
+            </div>
+
+            <div id="boxResultadoOrc" class="lg:col-span-7 p-4 rounded-xl border flex flex-col justify-between gap-3">
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <div>
+                  <span id="badgeStatusOrc" class="text-xs font-extrabold uppercase px-3 py-1 rounded-full">Calculando...</span>
+                  <h4 id="tituloResultadoOrc" class="text-base font-extrabold mt-2">Analisando projeção de consumo e compras...</h4>
+                </div>
+                <div class="text-right">
+                  <span class="text-[11px] text-slate-500 block">Saldo / Déficit Projetado</span>
+                  <strong id="valorSaldoProjetado" class="text-xl font-extrabold">R$ 0,00</strong>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/70 text-xs">
+                <div>
+                  <span class="text-slate-500 block text-[11px]">Consumo Projetado (<span id="lblDiasProj">30</span>d):</span>
+                  <strong id="valConsumoProj" class="text-slate-900">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500 block text-[11px]">Comprometido em OC/SC:</span>
+                  <strong id="valComprometidoProj" class="text-sky-700">R$ 0,00</strong>
+                </div>
+                <div>
+                  <span class="text-slate-500 block text-[11px]">% Utilização da Verba:</span>
+                  <strong id="valPctVerba" class="text-slate-900">0%</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="lg:col-span-2 clinical-card p-5 rounded-xl">
+            <h3 class="text-sm font-bold text-slate-900">Execução Orçamentária por Centro de Despesa (Nov/2026)</h3>
+            <p class="text-xs text-slate-500 mb-2">Comparativo entre Orçado, Realizado e Comprometido em Ordens de Compra.</p>
+            <div id="chartOrcamento" class="w-full h-80"></div>
+          </div>
+
+          <div class="clinical-card p-5 rounded-xl border-teal-500/40 space-y-4">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-0.5 rounded">Simulador What-If</span>
+              <h3 class="text-sm font-bold text-slate-900 mt-2">Simulação de Negociação & Lead Time</h3>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-600">Variação Ocupação / Demanda Clínica:</span>
+                <strong id="simDemandaVal" class="text-teal-700">+0%</strong>
+              </div>
+              <input id="simDemanda" type="range" min="-20" max="50" value="0" step="5" class="w-full accent-teal-600 cursor-pointer" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-600">Negociação Contratos Curva A:</span>
+                <strong id="simPrecoVal" class="text-emerald-600">-5%</strong>
+              </div>
+              <input id="simPreco" type="range" min="0" max="20" value="5" step="1" class="w-full accent-emerald-600 cursor-pointer" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-600">Redução Lead Time Fornecedores:</span>
+                <strong id="simLTVal" class="text-sky-600">-2 dias</strong>
+              </div>
+              <input id="simLT" type="range" min="0" max="7" value="2" step="1" class="w-full accent-sky-600 cursor-pointer" />
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 text-xs">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Saving Anual Projetado (Curva A):</span>
+                <strong id="resSaving" class="text-emerald-700">R$ 0,00</strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Liberação Capital de Giro:</span>
+                <strong id="resCapGiro" class="text-sky-700">R$ 0,00</strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">SKUs em Risco no Cenário:</span>
+                <strong id="resSkusRisco" class="text-rose-600">0 SKUs</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="clinical-card p-5 rounded-xl">
+          <h3 class="text-sm font-bold text-slate-900 mb-1">Detalhamento Orçamentário por Despesa & Espécie (Top 15 Linhas)</h3>
+          <p class="text-xs text-slate-500 mb-3">Exibindo os 15 maiores desvios orçamentários • Role horizontalmente para ver saldos.</p>
+          <div class="table-scroll overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-[900px] w-full text-left text-xs">
+              <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3.5">Competência</th>
+                  <th class="py-3 px-3.5">Centro de Despesa</th>
+                  <th class="py-3 px-3.5">Espécie</th>
+                  <th class="py-3 px-3.5 text-right">Orçado</th>
+                  <th class="py-3 px-3.5 text-right">Realizado</th>
+                  <th class="py-3 px-3.5 text-right">Comprometido (OC)</th>
+                  <th class="py-3 px-3.5 text-right">Saldo / Estouro</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyOrcamento" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main> <!-- ASSINATURA EXECUTIVA DE PORTFÓLIO -->
+<footer class="max-w-[1440px] w-full mx-auto px-6 pb-8 pt-2">
+  <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4 shadow-sm">
+    <div class="flex items-center gap-3.5">
+      <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-[#062824] to-[#0d9488] text-white font-extrabold text-sm flex items-center justify-center shadow">
+        IC
+      </div>
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-extrabold text-slate-900">Ingrid Cristina</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+            Data Specialist • BI & Analytics
+          </span>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Lean Six Sigma Green Belt
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">
+          Data Products, Governança & Melhoria Contínua (DMAIC) • PostgreSQL • Python • Power BI (DAX) • Cloud Analytics
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2.5 text-xs font-semibold">
+      <a href="https://github.com/IngridCristinaa" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/ingridcmoura/" target="_blank" class="px-3 py-1.5 rounded-lg bg-[#0d9488] hover:bg-[#0f766e] text-white transition shadow-sm">
+        Conectar no LinkedIn
+      </a>
+    </div>
+  </div>
+</footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // CONFIGURAÇÃO DO SUPABASE
+    // =========================================================================
+    const SUPABASE_URL = 'https://gpfagahbnlvqqjwtnnfq.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_2IU_jRCOizof-xpS1YQhJw_gXiGm57O';
+    // =========================================================================
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let skus = [], fornecedores = [], compras = [], precosVar = [], orcamentos = [];
+
+    const tabTitles = {
+      visao1: ['Visão executiva', 'Torre de Controle de Suprimentos Hospitalares'],
+      visao2: ['Risco assistencial', 'Antecipação de Ruptura & Equivalência Terapêutica'],
+      visao3: ['Auditoria de preços', 'Governança de Compras, Contratos & Sobrepreço'],
+      visao4: ['Performance fornecedores', 'Monitoramento de SLA, OTIF & Estabilidade (50 Fornecedores)'],
+      visao5: ['Orçamento & simulação', 'Planejamento Orçamentário & Verificador de Teto']
+    };
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      const icon = document.getElementById('toggleIcon');
+      sb.classList.toggle('collapsed');
+      icon.innerText = sb.classList.contains('collapsed') ? '»' : '«';
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 260);
+    }
+
+    function setTab(id) {
+      ['visao1', 'visao2', 'visao3', 'visao4', 'visao5'].forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+        document.getElementById(`nav-${v}`).classList.remove('active');
+      });
+      document.getElementById(`view-${id}`).classList.remove('hidden');
+      document.getElementById(`nav-${id}`).classList.add('active');
+      document.getElementById('breadcrumbAtual').innerText = tabTitles[id][0];
+      document.getElementById('tituloPagina').innerText = tabTitles[id][1];
+      window.dispatchEvent(new Event('resize'));
+    }
+
+    function setHorizonteOrc(dias) {
+      document.getElementById('inputDiasOrc').value = dias;
+      render();
+    }
+
+    function limparFiltros() {
+      ['fEspecie', 'fCriticidade', 'fABC'].forEach(id => document.getElementById(id).value = 'Todas');
+      document.getElementById('fCentro').value = 'Todos';
+      document.getElementById('buscaSku').value = '';
+      render();
+    }
+
+    async function fetchAll(table) {
+      let all = [], from = 0, step = 1000;
+      while (true) {
+        const { data, error } = await db.from(table).select('*').range(from, from + step - 1);
+        if (error || !data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < step) break;
+        from += step;
+      }
+      return all;
+    }
+
+    async function init() {
+      const badge = document.getElementById('badgeStatus');
+      const dot = document.getElementById('dotStatus');
+      const [s, f, c, p, o] = await Promise.all([
+        fetchAll('vw_torre_controle_skus'),
+        fetchAll('hosp_fornecedores'),
+        fetchAll('hosp_pipeline_compras'),
+        fetchAll('vw_variacao_preco_mensal'),
+        fetchAll('hosp_orcamento')
+      ]);
+      skus = s; fornecedores = f; compras = c; precosVar = p; orcamentos = o;
+
+      if (skus.length > 0) {
+        badge.innerText = `Ao Vivo • ${skus.length} SKUs`;
+        dot.className = 'w-2.5 h-2.5 shrink-0 rounded-full bg-emerald-400';
+      } else {
+        badge.innerText = 'Verifique Importação CSV';
+        dot.className = 'w-2.5 h-2.5 shrink-0 rounded-full bg-rose-500';
+      }
+      render();
+    }
+
+    const fmtBRL = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    const fmtBRLFull = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    function renderCardKPI(k, idx, colsPerRow = 7) {
+      return `
+        <div class="clinical-card p-3.5 rounded-xl relative">
+          <div class="flex justify-between items-start gap-1">
+            <p class="text-[11px] font-bold text-slate-600 leading-tight">${k.num ? k.num + '. ' : ''}${k.titulo}</p>
+            <div class="kpi-info-wrap shrink-0">
+              <span class="w-4 h-4 rounded-full bg-slate-100 hover:bg-teal-600 text-slate-500 hover:text-white border border-slate-300 hover:border-teal-600 text-[10px] font-extrabold flex items-center justify-center cursor-help transition">?</span>
+              <div class="kpi-tooltip ${idx % colsPerRow === 0 ? 'kpi-tooltip-left' : ''}">
+                <p class="text-xs font-bold text-teal-300 mb-1">${k.titulo}</p>
+                <p class="text-[11px] text-slate-200 leading-snug mb-2">${k.desc}</p>
+                <div class="bg-black/40 border border-teal-800 rounded p-2 mb-1.5">
+                  <span class="text-[9px] uppercase font-bold text-emerald-400 block">Fórmula de Cálculo:</span>
+                  <code class="text-[10px] text-teal-100 font-mono">${k.formula}</code>
+                </div>
+                <div>
+                  <span class="text-[9px] uppercase font-bold text-amber-300 block">Origem dos Dados:</span>
+                  <span class="text-[10px] text-slate-300">${k.fonte}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-base font-extrabold ${k.cor} mt-1.5">${k.valor}</p>
+          <span class="text-[10px] text-slate-500 block truncate mt-0.5">${k.sub}</span>
+        </div>
+      `;
+    }
+
+    function render() {
+      const esp = document.getElementById('fEspecie').value;
+      const crit = document.getElementById('fCriticidade').value;
+      const abc = document.getElementById('fABC').value;
+      const centro = document.getElementById('fCentro').value;
+      const busca = document.getElementById('buscaSku').value.toLowerCase();
+      const diasAlerta = Number(document.getElementById('sliderDiasAlerta').value);
+      document.getElementById('lblDiasAlerta').innerText = `${diasAlerta} dias`;
+
+      const filteredSkus = skus.filter(s =>
+        (esp === 'Todas' || s.especie === esp) &&
+        (crit === 'Todas' || s.criticidade === crit) &&
+        (abc === 'Todas' || s.curva_abc === abc) &&
+        (centro === 'Todos' || s.centro_despesa === centro) &&
+        (!busca || s.sku_id.toLowerCase().includes(busca) || s.descricao.toLowerCase().includes(busca))
+      );
+
+      document.getElementById('resumoBaseLabel').innerText = `${filteredSkus.length} SKUs filtrados • ${fornecedores.length} Fornecedores • ${compras.length} Docs`;
+
+      const skuSet = new Set(filteredSkus.map(s => s.sku_id));
+      const comprasFilt = compras.filter(c => skuSet.has(c.sku_id));
+      const fornMap = Object.fromEntries(fornecedores.map(f => [f.fornecedor_id, f.nome_fornecedor]));
+      const fornAnvisaMap = Object.fromEntries(fornecedores.map(f => [f.fornecedor_id, f.homologacao_anvisa]));
+      const skuCustoMap = Object.fromEntries(filteredSkus.map(s => [s.sku_id, Number(s.custo_medio_unitario || 0)]));
+
+      // Pipeline de Capital
+      const valEst = filteredSkus.reduce((a, s) => a + (s.estoque_atual * s.custo_medio_unitario), 0);
+      const qtdEst = filteredSkus.reduce((a, s) => a + s.estoque_atual, 0);
+      const valSC = filteredSkus.reduce((a, s) => a + Number(s.valor_em_sc || 0), 0);
+      const qtdSC = filteredSkus.reduce((a, s) => a + Number(s.qtd_em_sc || 0), 0);
+      const valOC = filteredSkus.reduce((a, s) => a + Number(s.valor_em_oc || 0), 0);
+      const qtdOC = filteredSkus.reduce((a, s) => a + Number(s.qtd_em_oc || 0), 0);
+
+      document.getElementById('kpiEstoqueVal').innerText = fmtBRL(valEst);
+      document.getElementById('kpiEstoqueQtd').innerText = `${qtdEst.toLocaleString('pt-BR')} unid. • ${filteredSkus.length} SKUs`;
+      document.getElementById('kpiSCVal').innerText = fmtBRL(valSC);
+      document.getElementById('kpiSCQtd').innerText = `${qtdSC.toLocaleString('pt-BR')} unid. em cotação`;
+      document.getElementById('kpiOCVal').innerText = fmtBRL(valOC);
+      document.getElementById('kpiOCQtd').innerText = `${qtdOC.toLocaleString('pt-BR')} unid. abastecendo`;
+
+      // Cálculos dos KPIs (Módulos A, B, C, D)
+      const entregues = comprasFilt.filter(c => c.fase_fluxo === '4. Entregue' && c.data_entrega_real);
+      const otifCount = entregues.filter(c => new Date(c.data_entrega_real) <= new Date(c.data_previsao_entrega) && c.qtd_entregue >= c.qtd_solicitada).length;
+      const otifPct = entregues.length ? Number(((otifCount / entregues.length) * 100).toFixed(1)) : 0;
+
+      const reqAtend = filteredSkus.reduce((a, s) => a + (s.requisicoes_atendidas_mes || 0), 0);
+      const reqTot = filteredSkus.reduce((a, s) => a + (s.requisicoes_totais_mes || 0), 0);
+      const fillRate = reqTot ? Number(((reqAtend / reqTot) * 100).toFixed(1)) : 100;
+
+      const cobAtualMed = filteredSkus.length ? (filteredSkus.reduce((a, s) => a + Number(s.dias_cobertura_atual || 0), 0) / filteredSkus.length).toFixed(1) : 0;
+      const cobProjMed = filteredSkus.length ? (filteredSkus.reduce((a, s) => a + Number(s.dias_cobertura_projetada || 0), 0) / filteredSkus.length).toFixed(1) : 0;
+
+      const emRisco = filteredSkus.filter(s => Number(s.dias_cobertura_atual) <= diasAlerta);
+      const emRiscoClasseX = emRisco.filter(s => s.criticidade === 'X');
+      const salvos = emRisco.filter(s => Number(s.qtd_em_oc) > 0 || s.sku_equivalente).length;
+      const salvamentoPct = emRisco.length ? Number(((salvos / emRisco.length) * 100).toFixed(1)) : 100;
+
+      const valVenc = filteredSkus.reduce((a, s) => a + (s.estoque_vencendo_60d * s.custo_medio_unitario), 0);
+      const consumoDiarioVal = filteredSkus.reduce((a, s) => a + (s.consumo_medio_diario * s.custo_medio_unitario), 0);
+      const consumoAnualVal = consumoDiarioVal * 365;
+      const giro = valEst ? (consumoAnualVal / valEst).toFixed(1) : 0;
+
+      const acurados = filteredSkus.filter(s => s.estoque_atual === s.estoque_sistema).length;
+      const ira = filteredSkus.length ? Number(((acurados / filteredSkus.length) * 100).toFixed(1)) : 100;
+
+      const ltP2P = entregues.length ? (entregues.reduce((a, c) => a + Math.max(1, (new Date(c.data_entrega_real) - new Date(c.data_abertura_sc)) / 86400000), 0) / entregues.length).toFixed(1) : 0;
+      const atrasoMedGeral = entregues.length ? (entregues.reduce((a, c) => a + Math.max(0, (new Date(c.data_entrega_real) - new Date(c.data_previsao_entrega)) / 86400000), 0) / entregues.length).toFixed(1) : 0;
+      const emergPct = comprasFilt.length ? Number(((comprasFilt.filter(c => c.tipo_compra === 'Emergencial').length / comprasFilt.length) * 100).toFixed(1)) : 0;
+
+      // Novos KPIs Táticos & Estratégicos (Spend Under Management, Contract Compliance, Resiliência)
+      const totalSpend = comprasFilt.reduce((a, c) => a + (c.qtd_solicitada * Number(c.valor_unitario_compra || 0)), 0);
+      const spendHomologado = comprasFilt.filter(c => fornAnvisaMap[c.fornecedor_id] === 'Ativa').reduce((a, c) => a + (c.qtd_solicitada * Number(c.valor_unitario_compra || 0)), 0);
+      const sumPct = totalSpend ? Number(((spendHomologado / totalSpend) * 100).toFixed(1)) : 100;
+
+      const compliantCount = comprasFilt.filter(c => Number(c.valor_unitario_compra) <= (skuCustoMap[c.sku_id] || 999999) * 1.05).length;
+      const compliancePct = comprasFilt.length ? Number(((compliantCount / comprasFilt.length) * 100).toFixed(1)) : 100;
+
+      const resilienciaScore = Math.round((salvamentoPct * 0.4) + (fillRate * 0.3) + (sumPct * 0.3));
+
+      const precosFilt = precosVar.filter(p => skuSet.has(p.sku_id));
+      const totalSobre = precosFilt.reduce((a, p) => a + Number(p.impacto_financeiro_sobrepreco || 0), 0);
+      const maxVarPct = precosFilt.length ? Math.max(...precosFilt.map(p => Number(p.variacao_percentual || 0))).toFixed(1) : 0;
+
+      const parciaisCount = entregues.filter(c => c.qtd_entregue < c.qtd_solicitada).length;
+      const backorderPct = entregues.length ? ((parciaisCount / entregues.length) * 100).toFixed(1) : 0;
+
+      const orcNov = orcamentos.filter(o => o.mes_competencia === '2026-11' && (esp === 'Todas' || o.especie === esp) && (centro === 'Todos' || o.centro_despesa === centro));
+      const totOrcado = orcNov.reduce((a, o) => a + Number(o.valor_orcado || 0), 0);
+      const totExec = orcNov.reduce((a, o) => a + Number(o.valor_realizado || 0) + Number(o.valor_comprometido_oc || 0), 0);
+      const execOrcPct = totOrcado ? ((totExec / totOrcado) * 100).toFixed(1) : 0;
+
+      // 14 KPIs CONSOLIDADOS NA PÁGINA 1
+      const kpis14 = [
+        { num: '1', titulo: 'OTIF Hospitalar', valor: `${otifPct}%`, sub: 'Meta SLA: >= 92%', cor: 'text-emerald-700', desc: 'Percentual de pedidos entregues completos e dentro do prazo acordado.', formula: '(Entregas no Prazo e Completas ÷ Total Entregas) × 100', fonte: 'hosp_pipeline_compras' },
+        { num: '2', titulo: 'Fill Rate Assistencial', valor: `${fillRate}%`, sub: 'Atendimento beira-leito', cor: 'text-teal-700', desc: 'Percentual de requisições das unidades clínicas atendidas imediatamente sem ruptura.', formula: '(Requisições Atendidas ÷ Total Requisições) × 100', fonte: 'hosp_skus' },
+        { num: '3', titulo: 'Cobertura Atual → Proj.', valor: `${cobAtualMed}d → ${cobProjMed}d`, sub: 'Autonomia c/ OCs', cor: 'text-sky-700', desc: 'Dias que o estoque atual sustenta a demanda média e projeção após chegada das OCs.', formula: 'Atual: Estoque ÷ CMD | Proj.: (Estoque + OC) ÷ CMD', fonte: 'vw_torre_controle_skus' },
+        { num: '4', titulo: 'Risco Ruptura (Stockout)', valor: `${emRisco.length} SKUs`, sub: `Janela <= ${diasAlerta} dias`, cor: 'text-rose-600', desc: 'Itens cuja cobertura física é menor ou igual à janela de antecipação configurada.', formula: 'COUNT(SKUs WHERE dias_cobertura_atual <= Janela)', fonte: 'vw_torre_controle_skus' },
+        { num: '5', titulo: 'Mitigação de Ruptura', valor: `${salvamentoPct}%`, sub: 'Cobertos por OC / Equiv.', cor: 'text-teal-700', desc: 'Percentual de itens em risco que já possuem OC em trânsito ou SKU equivalente homologado.', formula: '(SKUs Risco c/ OC ou Equivalente ÷ Total Risco) × 100', fonte: 'vw_torre_controle_skus' },
+        { num: '6', titulo: 'Obsolescência / FEFO <60d', valor: fmtBRL(valVenc), sub: 'Risco vencimento', cor: 'text-purple-700', desc: 'Capital imobilizado em lotes com vencimento inferior a 60 dias que exigem remanejamento.', formula: 'Σ (estoque_vencendo_60d × custo_medio_unitario)', fonte: 'hosp_skus' },
+        { num: '7', titulo: 'Giro de Estoque', valor: `${giro}x / ano`, sub: 'Inventory Turnover', cor: 'text-slate-900', desc: 'Velocidade de renovação anual do estoque hospitalar.', formula: '(Consumo Anual R$ ÷ Valor Estoque Atual)', fonte: 'hosp_skus' },
+        { num: '8', titulo: 'Acuracidade (IRA)', valor: `${ira}%`, sub: 'Físico vs. ERP', cor: 'text-emerald-700', desc: 'Concordância exata entre contagem física e saldo contábil do sistema.', formula: '(SKUs sem Divergência ÷ Total SKUs) × 100', fonte: 'hosp_skus' },
+        { num: '9', titulo: 'Lead Time Compra (P2P)', valor: `${ltP2P} dias`, sub: 'SC → Entrada Física', cor: 'text-amber-700', desc: 'Tempo médio ponta a ponta entre abertura da SC e entrada física no almoxarifado.', formula: 'AVG(data_entrega_real - data_abertura_sc)', fonte: 'hosp_pipeline_compras' },
+        { num: '10', titulo: 'Pedidos Emergenciais', valor: `${emergPct}%`, sub: 'Expedite Rate (<=8%)', cor: 'text-rose-600', desc: 'Percentual de ordens emitidas em caráter urgente fora do ponto de pedido.', formula: "(Pedidos 'Emergencial' ÷ Total Pedidos) × 100", fonte: 'hosp_pipeline_compras' },
+        { num: '11', titulo: 'Spend Under Mgmt', valor: `${sumPct}%`, sub: 'Fornecedores ANVISA Ativa', cor: 'text-sky-700', desc: 'Percentual do gasto gerenciado junto a fornecedores com homologação sanitária ativa.', formula: '(Gasto Fornecedores Homologados ÷ Gasto Total) × 100', fonte: 'hosp_pipeline_compras + hosp_fornecedores' },
+        { num: '12', titulo: 'Contract Compliance', valor: `${compliancePct}%`, sub: 'Aderência tabela preço', cor: 'text-teal-700', desc: 'Percentual de pedidos executados dentro da faixa contratual sem sobrepreço emergencial.', formula: '(Pedidos <= 105% Preço Baseline ÷ Total Pedidos) × 100', fonte: 'hosp_pipeline_compras + hosp_skus' },
+        { num: '13', titulo: 'PPV & Sobrepreço Mês', valor: fmtBRL(totalSobre), sub: `${precosFilt.length} SKUs divergentes`, cor: 'text-orange-600', desc: 'Perda financeira por comprar o mesmo SKU no mesmo mês por valores distintos.', formula: 'Σ [(Preço Pago - Menor Preço Mês) × Qtd]', fonte: 'vw_variacao_preco_mensal' },
+        { num: '14', titulo: 'Execução Orçamentária', valor: `${execOrcPct}%`, sub: `${fmtBRL(totExec)} / ${fmtBRL(totOrcado)}`, cor: Number(execOrcPct) > 100 ? 'text-rose-600' : 'text-teal-700', desc: 'Aderência ao orçamento mensal somando realizado + comprometido em OCs.', formula: '[(Realizado + Comprometido OC) ÷ Orçado] × 100', fonte: 'hosp_orcamento' }
+      ];
+      document.getElementById('grid13KPIs').innerHTML = kpis14.map((k, i) => renderCardKPI(k, i, 7)).join('');
+
+      // 4 KPIs CONTEXTUAIS DA PÁGINA 2 (RISCO ASSISTENCIAL)
+      document.getElementById('kpis-visao2').innerHTML = [
+        { titulo: 'SKUs em Risco na Janela', valor: `${emRisco.length} itens`, sub: `Cobertura <= ${diasAlerta} dias`, cor: 'text-rose-600', desc: 'Total de SKUs que entrarão em ruptura dentro da janela de antecedência selecionada.', formula: 'COUNT(SKUs WHERE dias_cobertura_atual <= Janela)', fonte: 'vw_torre_controle_skus' },
+        { titulo: 'Itens Vitais (Classe X)', valor: `${emRiscoClasseX.length} itens`, sub: 'Impacto direto UTI / CC', cor: 'text-rose-700', desc: 'Itens de criticidade máxima (Classe X) cujo desabastecimento paralisa cirurgias ou suporte à vida.', formula: "COUNT(SKUs WHERE criticidade = 'X' AND cobertura <= Janela)", fonte: 'vw_torre_controle_skus' },
+        { titulo: 'Mitigação de Ruptura', valor: `${salvamentoPct}%`, sub: `${salvos} de ${emRisco.length} mitigados`, cor: 'text-teal-700', desc: 'Percentual de itens em alerta que já têm OC chegando ou equivalente terapêutico homologado.', formula: '(SKUs Risco c/ OC ou Equivalente ÷ Total Risco) × 100', fonte: 'vw_torre_controle_skus' },
+        { titulo: 'Fill Rate Assistencial', valor: `${fillRate}%`, sub: 'Nível de serviço beira-leito', cor: 'text-sky-700', desc: 'Taxa de atendimento imediato das requisições feitas pelas unidades clínicas.', formula: '(Requisições Atendidas ÷ Requisições Totais) × 100', fonte: 'hosp_skus' }
+      ].map((k, i) => renderCardKPI(k, i, 4)).join('');
+
+      // 4 KPIs CONTEXTUAIS DA PÁGINA 3 (AUDITORIA DE PREÇOS & COMPLIANCE)
+      document.getElementById('kpis-visao3').innerHTML = [
+        { titulo: 'Sobrepreço Total (Mesmo Mês)', valor: fmtBRLFull(totalSobre), sub: 'Desperdício evitável', cor: 'text-orange-600', desc: 'Soma financeira da diferença paga acima do menor preço praticado para o mesmo SKU no mesmo mês.', formula: 'Σ [(Valor Unitário - Min Preço Mês) × Qtd]', fonte: 'vw_variacao_preco_mensal' },
+        { titulo: 'Contract Compliance', valor: `${compliancePct}%`, sub: 'Pedidos dentro da tabela', cor: 'text-teal-700', desc: 'Percentual de compras realizadas respeitando o teto contratual acordado.', formula: '(Pedidos Conformes ÷ Total Pedidos) × 100', fonte: 'hosp_pipeline_compras' },
+        { titulo: 'Maior Variação Unitária', valor: `+${maxVarPct}%`, sub: 'Pico de dispersão no mês', cor: 'text-rose-600', desc: 'Maior percentual de aumento encontrado entre duas compras do mesmo item na mesma competência.', formula: 'MAX(((Maior Preço - Menor Preço) ÷ Menor Preço) × 100)', fonte: 'vw_variacao_preco_mensal' },
+        { titulo: 'Taxa Compras Emergenciais', valor: `${emergPct}%`, sub: 'Principal causa de PPV', cor: 'text-amber-700', desc: 'Proporção de pedidos emitidos em urgência sem negociação de tabela.', formula: "(Pedidos Emergenciais ÷ Total Pedidos) × 100", fonte: 'hosp_pipeline_compras' }
+      ].map((k, i) => renderCardKPI(k, i, 4)).join('');
+
+      // 4 KPIs CONTEXTUAIS DA PÁGINA 4 (50 FORNECEDORES)
+      const fornStats = {};
+      fornecedores.forEach(f => fornStats[f.fornecedor_id] = { ...f, atrasos: [], lts: [], parciais: 0, otif: 0, total: 0 });
+      entregues.forEach(c => {
+        const st = fornStats[c.fornecedor_id];
+        if (!st) return;
+        const diff = Math.max(0, Math.ceil((new Date(c.data_entrega_real) - new Date(c.data_previsao_entrega)) / 86400000));
+        const ltReal = Math.max(1, Math.ceil((new Date(c.data_entrega_real) - new Date(c.data_emissao_oc)) / 86400000));
+        st.atrasos.push(diff);
+        st.lts.push(ltReal);
+        st.total += 1;
+        if (c.qtd_entregue < c.qtd_solicitada) st.parciais += 1;
+        if (diff === 0 && c.qtd_entregue >= c.qtd_solicitada) st.otif += 1;
+      });
+      const fArr = Object.values(fornStats).filter(f => f.total > 0);
+      const fornCriticos = fArr.filter(f => (f.otif / f.total) < 0.7).length;
+
+      document.getElementById('kpis-visao4').innerHTML = [
+        { titulo: 'OTIF Global (50 Fornecedores)', valor: `${otifPct}%`, sub: 'No prazo e completo', cor: 'text-emerald-700', desc: 'Indicador máximo de performance logística dos 50 fornecedores homologados.', formula: '(Entregas On-Time In-Full ÷ Total Entregas) × 100', fonte: 'hosp_pipeline_compras' },
+        { titulo: 'Atraso Médio Pós-SLA', valor: `${atrasoMedGeral} dias`, sub: 'Desvio médio de entrega', cor: 'text-rose-600', desc: 'Média de dias de atraso além da data prevista contratualmente.', formula: 'AVG(MAX(0, data_entrega_real - data_previsao_entrega))', fonte: 'hosp_pipeline_compras' },
+        { titulo: 'Índice Entrega Parcial', valor: `${backorderPct}%`, sub: 'Backorder Rate', cor: 'text-amber-700', desc: 'Percentual de ordens entregues incompletas, gerando saldo residual.', formula: '(Pedidos Qtd Entregue < Solicitada ÷ Total) × 100', fonte: 'hosp_pipeline_compras' },
+        { titulo: 'Fornecedores Críticos', valor: `${fornCriticos} de ${fArr.length}`, sub: 'OTIF abaixo de 70%', cor: 'text-slate-900', desc: 'Fornecedores que exigem plano de ação ou substituição na matriz de homologação.', formula: 'COUNT(Fornecedores WHERE OTIF < 70%)', fonte: 'hosp_fornecedores + hosp_pipeline_compras' }
+      ].map((k, i) => renderCardKPI(k, i, 4)).join('');
+
+      // 4 KPIs CONTEXTUAIS DA PÁGINA 5 (ORÇAMENTO & SIMULADOR)
+      const saldoOrc = totOrcado - totExec;
+      document.getElementById('kpis-visao5').innerHTML = [
+        { titulo: 'Orçamento Planejado (Mês)', valor: fmtBRL(totOrcado), sub: 'Competência Nov/2026', cor: 'text-slate-900', desc: 'Teto orçamentário aprovado para os centros de despesa e espécies filtrados.', formula: 'SUM(valor_orcado)', fonte: 'hosp_orcamento' },
+        { titulo: 'Realizado + Comprometido', valor: fmtBRL(totExec), sub: `${execOrcPct}% do orçamento`, cor: 'text-teal-700', desc: 'Soma das notas já faturadas com as Ordens de Compra em aberto.', formula: 'SUM(valor_realizado + valor_comprometido_oc)', fonte: 'hosp_orcamento' },
+        { titulo: 'Saldo / Estouro Orçamentário', valor: fmtBRL(saldoOrc), sub: saldoOrc < 0 ? 'Acima do teto previsto' : 'Dentro do orçamento', cor: saldoOrc < 0 ? 'text-rose-600' : 'text-emerald-700', desc: 'Diferença líquida entre o orçamento aprovado e o total comprometido.', formula: 'valor_orcado - (valor_realizado + valor_comprometido_oc)', fonte: 'hosp_orcamento' },
+        { titulo: 'Risco Perda Validade (FEFO)', valor: fmtBRL(valVenc), sub: 'Lotes vencendo < 60d', cor: 'text-purple-700', desc: 'Impacto financeiro potencial por vencimento de estoque sem giro.', formula: 'Σ (estoque_vencendo_60d × custo_medio_unitario)', fonte: 'hosp_skus' }
+      ].map((k, i) => renderCardKPI(k, i, 4)).join('');
+
+      // =====================================================================
+      // NOVOS GRÁFICOS INSPIRADOS NAS IMAGENS ENVIADAS
+      // =====================================================================
+      const baseLayout = {
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: { family: 'Plus Jakarta Sans', color: '#475569', size: 11 }
+      };
+
+      // Série Mensal Real extraída de comprasFilt
+      const mesesSet = [...new Set(comprasFilt.map(c => c.mes_competencia))].sort();
+      const mesesLabels = mesesSet.length ? mesesSet : ['2026-09', '2026-10', '2026-11'];
+      const otifMensal = mesesLabels.map(m => {
+        const entM = entregues.filter(c => c.mes_competencia === m);
+        if (!entM.length) return otifPct;
+        const ok = entM.filter(c => new Date(c.data_entrega_real) <= new Date(c.data_previsao_entrega) && c.qtd_entregue >= c.qtd_solicitada).length;
+        return Number(((ok / entM.length) * 100).toFixed(1));
+      });
+      const emergMensal = mesesLabels.map(m => {
+        const cM = comprasFilt.filter(c => c.mes_competencia === m);
+        if (!cM.length) return emergPct;
+        return Number(((cM.filter(c => c.tipo_compra === 'Emergencial').length / cM.length) * 100).toFixed(1));
+      });
+      const compMensal = mesesLabels.map(m => {
+        const cM = comprasFilt.filter(c => c.mes_competencia === m);
+        if (!cM.length) return compliancePct;
+        const ok = cM.filter(c => Number(c.valor_unitario_compra) <= (skuCustoMap[c.sku_id] || 999999) * 1.05).length;
+        return Number(((ok / cM.length) * 100).toFixed(1));
+      });
+
+      // GRÁFICO 1 (ESTILO IMAGEM 1): Card Gradiente Turquesa com Área + Linha Branca
+      document.getElementById('badgeTrendOTIF').innerText = `OTIF: ${otifPct}%`;
+      Plotly.newPlot('chartGradientTrend', [{
+        x: mesesLabels,
+        y: otifMensal,
+        type: 'scatter',
+        mode: 'lines+markers+text',
+        text: otifMensal.map(v => `${v}%`),
+        textposition: 'top center',
+        textfont: { color: '#ffffff', size: 11, weight: 'bold' },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(255, 255, 255, 0.22)',
+        line: { color: '#ffffff', width: 3, shape: 'spline' },
+        marker: { color: '#ffffff', size: 8, line: { color: '#0284c7', width: 2 } },
+        hovertemplate: '<b>Competência %{x}</b><br>OTIF: %{y}%<extra></extra>'
+      }], {
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: { family: 'Plus Jakarta Sans', color: 'rgba(255,255,255,0.9)', size: 11 },
+        margin: { t: 25, b: 28, l: 32, r: 20 },
+        xaxis: { showgrid: false, zeroline: false },
+        yaxis: { gridcolor: 'rgba(255,255,255,0.18)', range: [0, 110], zeroline: false }
+      }, { responsive: true, displayModeBar: false });
+
+      // GRÁFICO 2 (ESTILO IMAGEM 2): Anel Circular Único (Índice de Resiliência)
+      Plotly.newPlot('chartDonutResiliencia', [{
+        values: [resilienciaScore, Math.max(0, 100 - resilienciaScore)],
+        labels: ['Resiliência Atual', 'Gap para 100%'],
+        type: 'pie',
+        hole: 0.74,
+        sort: false,
+        textinfo: 'none',
+        marker: { colors: ['#0ea5e9', '#e2e8f0'] },
+        hovertemplate: '<b>%{label}</b>: %{value}%<extra></extra>'
+      }], {
+        ...baseLayout,
+        showlegend: false,
+        margin: { t: 10, b: 10, l: 10, r: 10 },
+        annotations: [{
+          text: `<b style="font-size:28px; color:#0284c7;">${resilienciaScore}%</b><br><span style="font-size:11px; color:#64748b;">Resiliência</span>`,
+          showarrow: false, x: 0.5, y: 0.5
+        }]
+      }, { responsive: true, displayModeBar: false });
+
+      // GRÁFICO 3 (ESTILO IMAGEM 3): Anéis Concêntricos de Governança
+      const ringLabels = ['Fill Rate Assistencial', 'Spend Under Mgmt', 'Contract Compliance', 'OTIF Hospitalar'];
+      const ringVals = [fillRate, sumPct, compliancePct, otifPct];
+      const ringColors = ['#0284c7', '#0d9488', '#38bdf8', '#10b981'];
+      Plotly.newPlot('chartConcentricRings', ringVals.map((val, i) => ({
+        type: 'pie',
+        values: [val, Math.max(0, 100 - val)],
+        labels: [ringLabels[i], ''],
+        domain: { x: [i * 0.08, 1 - i * 0.08], y: [i * 0.08, 1 - i * 0.08] },
+        hole: 0.76,
+        sort: false,
+        textinfo: 'none',
+        marker: { colors: [ringColors[i], '#f1f5f9'] },
+        hovertemplate: `<b>${ringLabels[i]}</b>: ${val}%<extra></extra>`
+      })), {
+        ...baseLayout,
+        showlegend: false,
+        margin: { t: 10, b: 10, l: 10, r: 10 },
+        annotations: [
+          { text: `Fill Rate: <b>${fillRate}%</b>`, x: 0.5, y: 0.96, showarrow: false, font: { size: 10, color: '#0284c7' } },
+          { text: `Spend Mgmt: <b>${sumPct}%</b>`, x: 0.5, y: 0.87, showarrow: false, font: { size: 10, color: '#0d9488' } },
+          { text: `Compliance: <b>${compliancePct}%</b>`, x: 0.5, y: 0.53, showarrow: false, font: { size: 10, color: '#0369a1' } },
+          { text: `OTIF: <b>${otifPct}%</b>`, x: 0.5, y: 0.43, showarrow: false, font: { size: 11, color: '#059669' } }
+        ]
+      }, { responsive: true, displayModeBar: false });
+
+      // GRÁFICO 4 (ESTILO IMAGEM 3): Barras Horizontais com Rótulos Internos (Spend por Espécie)
+      const espList = [...new Set(filteredSkus.map(s => s.especie))];
+      const spendPorEsp = espList.map(e => {
+        const sIds = new Set(filteredSkus.filter(s => s.especie === e).map(s => s.sku_id));
+        return comprasFilt.filter(c => sIds.has(c.sku_id)).reduce((a, c) => a + (c.qtd_solicitada * Number(c.valor_unitario_compra || 0)), 0);
+      });
+      const ordEsp = espList.map((e, i) => ({ e, v: spendPorEsp[i] })).sort((a, b) => a.v - b.v);
+      Plotly.newPlot('chartHorizontalBars', [{
+        type: 'bar',
+        orientation: 'h',
+        y: ordEsp.map(o => o.e),
+        x: ordEsp.map(o => o.v),
+        text: ordEsp.map(o => fmtBRL(o.v)),
+        textposition: 'inside',
+        insidetextanchor: 'start',
+        textfont: { color: '#ffffff', weight: 'bold', size: 11 },
+        marker: { color: ['#1e3a8a', '#1d4ed8', '#0284c7', '#0d9488', '#10b981'] },
+        hovertemplate: '<b>%{y}</b><br>Spend Total: %{text}<extra></extra>'
+      }], {
+        ...baseLayout,
+        margin: { t: 10, b: 30, l: 155, r: 20 },
+        xaxis: { showgrid: true, gridcolor: '#f1f5f9', title: 'Gasto Total (R$)' }
+      }, { responsive: true, displayModeBar: false });
+
+      // GRÁFICO 5 (ESTILO IMAGEM 3): Evolução Multi-Linha Histórica
+      Plotly.newPlot('chartMultiLineTrend', [
+        { x: mesesLabels, y: compMensal, name: 'Contract Compliance (%)', type: 'scatter', mode: 'lines+markers', line: { color: '#0284c7', width: 2.5 }, marker: { size: 7 } },
+        { x: mesesLabels, y: otifMensal, name: 'OTIF Hospitalar (%)', type: 'scatter', mode: 'lines+markers', line: { color: '#0d9488', width: 2.5 }, marker: { size: 7 } },
+        { x: mesesLabels, y: emergMensal, name: 'Pedidos Emergenciais (%)', type: 'scatter', mode: 'lines+markers', line: { color: '#e11d48', width: 2.5, dash: 'dot' }, marker: { size: 7 } }
+      ], {
+        ...baseLayout,
+        margin: { t: 25, b: 35, l: 42, r: 15 },
+        yaxis: { range: [0, 105], gridcolor: '#f1f5f9', ticksuffix: '%' },
+        legend: { orientation: 'h', y: 1.16 }
+      }, { responsive: true, displayModeBar: false });
+
+      // GRÁFICO 6: Cobertura Atual vs Projetada em Largura Total
+      const yAtual = espList.map(e => { const arr = filteredSkus.filter(s => s.especie === e); return Number((arr.reduce((a,b)=>a+Number(b.dias_cobertura_atual),0)/arr.length).toFixed(1)); });
+      const yProj = espList.map(e => { const arr = filteredSkus.filter(s => s.especie === e); return Number((arr.reduce((a,b)=>a+Number(b.dias_cobertura_projetada),0)/arr.length).toFixed(1)); });
+      Plotly.newPlot('chartCoberturaEspecie', [
+        { x: espList, y: yAtual, name: 'Cobertura Física Atual (dias)', type: 'bar', text: yAtual.map(v => `${v}d`), textposition: 'outside', marker: { color: '#38bdf8' } },
+        { x: espList, y: yProj, name: 'Cobertura Projetada c/ OC (dias)', type: 'bar', text: yProj.map(v => `${v}d`), textposition: 'outside', marker: { color: '#0d9488' } },
+        { x: espList, y: espList.map(() => 30), name: 'Meta Segurança Clínica (30d)', type: 'scatter', mode: 'lines+markers', line: { color: '#f43f5e', width: 2.5, dash: 'dash' } }
+      ], {
+        ...baseLayout, barmode: 'group', bargap: 0.28,
+        margin: { t: 25, b: 45, l: 45, r: 20 },
+        yaxis: { title: 'Dias de Autonomia', gridcolor: '#f1f5f9', range: [0, Math.max(65, ...yProj) + 10] },
+        legend: { orientation: 'h', y: 1.14, x: 0 }
+      }, { responsive: true, displayModeBar: false });
+
+      // Gráficos Secundários (Páginas 2, 3, 4, 5)
+      const centrosList = [...new Set(filteredSkus.map(s => s.centro_despesa))];
+      Plotly.newPlot('chartRiscoCentro', [
+        { x: centrosList, y: centrosList.map(c => emRisco.filter(s => s.centro_despesa === c && Number(s.qtd_em_oc) === 0).length), name: 'Sem OC Aberta', type: 'bar', marker: { color: '#e11d48' } },
+        { x: centrosList, y: centrosList.map(c => emRisco.filter(s => s.centro_despesa === c && Number(s.qtd_em_oc) > 0).length), name: 'Com OC em Trânsito', type: 'bar', marker: { color: '#0d9488' } }
+      ], { ...baseLayout, barmode: 'stack', margin: { t: 10, b: 40, l: 35, r: 15 }, yaxis: { gridcolor: '#f1f5f9' }, legend: { orientation: 'h', y: 1.15 } }, { responsive: true, displayModeBar: false });
+
+      const sobreEspA = espList.map(e => precosFilt.filter(p => p.especie === e && p.curva_abc === 'A').reduce((a,b)=>a+Number(b.impacto_financeiro_sobrepreco),0));
+      const sobreEspBC = espList.map(e => precosFilt.filter(p => p.especie === e && p.curva_abc !== 'A').reduce((a,b)=>a+Number(b.impacto_financeiro_sobrepreco),0));
+      Plotly.newPlot('chartSobreprecoEspecie', [
+        { x: espList, y: sobreEspA, name: 'Curva A (Alto Impacto)', type: 'bar', marker: { color: '#ea580c' } },
+        { x: espList, y: sobreEspBC, name: 'Curvas B & C', type: 'bar', marker: { color: '#fdba74' } }
+      ], { ...baseLayout, barmode: 'stack', margin: { t: 20, b: 40, l: 65, r: 20 }, yaxis: { title: 'Sobrepreço Acumulado (R$)', gridcolor: '#f1f5f9' }, legend: { orientation: 'h', y: 1.15 } }, { responsive: true, displayModeBar: false });
+
+      const fByAtraso = [...fArr].sort((a, b) => (b.atrasos.reduce((x,y)=>x+y,0)/b.total) - (a.atrasos.reduce((x,y)=>x+y,0)/a.total)).slice(0, 15);
+      Plotly.newPlot('chartFornAtraso', [{
+        y: fByAtraso.map(f => f.nome_fornecedor).reverse(),
+        x: fByAtraso.map(f => (f.atrasos.reduce((x,y)=>x+y,0)/f.total).toFixed(1)).reverse(),
+        type: 'bar', orientation: 'h', marker: { color: '#e11d48' }
+      }], { ...baseLayout, margin: { t: 10, b: 30, l: 195, r: 15 }, xaxis: { gridcolor: '#f1f5f9' } }, { responsive: true, displayModeBar: false });
+
+      const fByParcial = [...fArr].sort((a, b) => (b.parciais/b.total) - (a.parciais/a.total)).slice(0, 15);
+      Plotly.newPlot('chartFornParcial', [{
+        y: fByParcial.map(f => f.nome_fornecedor).reverse(),
+        x: fByParcial.map(f => ((f.parciais/f.total)*100).toFixed(1)).reverse(),
+        type: 'bar', orientation: 'h', marker: { color: '#f59e0b' }
+      }], { ...baseLayout, margin: { t: 10, b: 30, l: 195, r: 15 }, xaxis: { gridcolor: '#f1f5f9' } }, { responsive: true, displayModeBar: false });
+
+      const centrosUniq = [...new Set(orcNov.map(o => o.centro_despesa))];
+      Plotly.newPlot('chartOrcamento', [
+        { x: centrosUniq, y: centrosUniq.map(c => orcNov.filter(o=>o.centro_despesa===c).reduce((a,b)=>a+Number(b.valor_orcado),0)), name: 'Orçado', type: 'bar', marker: { color: '#94a3b8' } },
+        { x: centrosUniq, y: centrosUniq.map(c => orcNov.filter(o=>o.centro_despesa===c).reduce((a,b)=>a+Number(b.valor_realizado),0)), name: 'Realizado', type: 'bar', marker: { color: '#0ea5e9' } },
+        { x: centrosUniq, y: centrosUniq.map(c => orcNov.filter(o=>o.centro_despesa===c).reduce((a,b)=>a+Number(b.valor_comprometido_oc),0)), name: 'Comprometido (OC)', type: 'bar', marker: { color: '#0d9488' } }
+      ], { ...baseLayout, barmode: 'group', margin: { t: 15, b: 45, l: 60, r: 15 }, yaxis: { gridcolor: '#f1f5f9' }, legend: { orientation: 'h', y: 1.15 } }, { responsive: true, displayModeBar: false });
+
+      // =====================================================================
+      // TABELAS (15 ITENS + SCROLL HORIZONTAL)
+      // =====================================================================
+      const hoje = new Date('2026-11-18');
+
+      // Tabela 1: Radar Top 15
+      const top15Radar = [...filteredSkus].sort((a, b) => Number(a.dias_cobertura_atual) - Number(b.dias_cobertura_atual)).slice(0, 15);
+      document.getElementById('tbodyRadar').innerHTML = top15Radar.map(s => {
+        const cobAtual = Number(s.dias_cobertura_atual);
+        const cobProj = Number(s.dias_cobertura_projetada);
+        const sugCompra = Math.max(0, Number(s.ponto_pedido_sugerido) - (s.estoque_atual + Number(s.qtd_em_oc)));
+        let statusTag = '<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">Cobertura Normal</span>';
+        if (cobAtual <= diasAlerta && Number(s.qtd_em_oc) === 0) {
+          statusTag = '<span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold">COMPRAR HOJE • Sem OC</span>';
+        } else if (cobAtual <= diasAlerta && s.proxima_entrega_prevista) {
+          const diasChegada = Math.ceil((new Date(s.proxima_entrega_prevista) - hoje) / 86400000);
+          statusTag = diasChegada > cobAtual
+            ? `<span class="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 font-semibold">OC atrasa ${diasChegada - Math.floor(cobAtual)}d • Alertar Assistência</span>`
+            : `<span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-semibold">OC atende (chega em ${diasChegada}d)</span>`;
+        }
+        return `
+          <tr class="hover:bg-teal-50/40">
+            <td class="py-2.5 px-3.5 font-bold text-slate-900">${s.sku_id}</td>
+            <td class="py-2.5 px-3.5 text-slate-700">${s.descricao}</td>
+            <td class="py-2.5 px-3.5 text-slate-500">${s.especie} • ${s.centro_despesa}</td>
+            <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold text-slate-700">${s.curva_abc}-${s.criticidade}</span></td>
+            <td class="py-2.5 px-3.5 font-semibold">${s.estoque_atual} un</td>
+            <td class="py-2.5 px-3.5 text-slate-600">${fmtBRLFull(s.custo_medio_unitario)}</td>
+            <td class="py-2.5 px-3.5 text-slate-600">${s.consumo_medio_diario}/d</td>
+            <td class="py-2.5 px-3.5 font-extrabold ${cobAtual <= diasAlerta ? 'text-rose-600' : 'text-emerald-700'}">${cobAtual} d</td>
+            <td class="py-2.5 px-3.5 text-slate-600">SC: ${s.qtd_em_sc} | OC: ${s.qtd_em_oc}</td>
+            <td class="py-2.5 px-3.5 font-bold text-teal-700">${cobProj} d</td>
+            <td class="py-2.5 px-3.5 font-semibold text-amber-700">${sugCompra > 0 ? sugCompra + ' un (Imediato)' : 'No Prazo'}</td>
+            <td class="py-2.5 px-3.5">${statusTag}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Tabela 2: Assistencial Top 15
+      document.getElementById('tbodyAssistencial').innerHTML = emRisco
+        .sort((a, b) => Number(a.dias_cobertura_atual) - Number(b.dias_cobertura_atual))
+        .slice(0, 15)
+        .map(s => {
+          const diasChegada = s.proxima_entrega_prevista ? Math.max(1, Math.ceil((new Date(s.proxima_entrega_prevista) - hoje) / 86400000)) : null;
+          const gap = diasChegada ? Math.max(0, diasChegada - Math.floor(s.dias_cobertura_atual)) : Math.ceil(s.lead_time_padrao_dias - s.dias_cobertura_atual);
+          return `
+            <tr class="hover:bg-teal-50/40">
+              <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.criticidade === 'X' ? 'bg-rose-600 text-white' : 'bg-amber-100 text-amber-800'}">${s.criticidade === 'X' ? 'CRÍTICO UTI/CC' : 'ESSENCIAL'}</span></td>
+              <td class="py-2.5 px-3.5 font-bold text-slate-900">${s.sku_id}</td>
+              <td class="py-2.5 px-3.5 text-slate-700">${s.descricao}</td>
+              <td class="py-2.5 px-3.5 text-slate-600">${s.centro_despesa}</td>
+              <td class="py-2.5 px-3.5 font-semibold">${s.estoque_atual} un</td>
+              <td class="py-2.5 px-3.5 font-extrabold text-rose-600">${s.dias_cobertura_atual} dias</td>
+              <td class="py-2.5 px-3.5 text-slate-600">${s.proxima_entrega_prevista || 'Sem OC Aberta'}</td>
+              <td class="py-2.5 px-3.5 font-bold text-orange-600">${gap > 0 ? gap + ' dias descobertos' : 'Coberto por OC'}</td>
+              <td class="py-2.5 px-3.5 font-bold text-teal-700">${s.sku_equivalente || 'Acionar Farmácia Clínica'}</td>
+            </tr>
+          `;
+        }).join('');
+
+      // Tabela 3: Ranking Completo de Preços (Item, Fornecedores Menor/Maior Preço e Período)
+      document.getElementById('tbodyPrecos').innerHTML = [...precosFilt]
+        .sort((a, b) => Number(b.variacao_percentual) - Number(a.variacao_percentual))
+        .slice(0, 15)
+        .map((p, idx) => {
+          const docsMes = compras.filter(c => c.sku_id === p.sku_id && c.mes_competencia === p.mes_competencia)
+            .sort((a, b) => Number(a.valor_unitario_compra) - Number(b.valor_unitario_compra));
+          const docMin = docsMes[0];
+          const docMax = docsMes[docsMes.length - 1];
+          const fornMin = docMin ? (fornMap[docMin.fornecedor_id] || docMin.fornecedor_id) : '—';
+          const fornMax = docMax ? (fornMap[docMax.fornecedor_id] || docMax.fornecedor_id) : '—';
+          const periodoDetalhe = (docMin && docMax) ? `${p.mes_competencia} (${docMin.data_emissao_oc.slice(5)} vs ${docMax.data_emissao_oc.slice(5)})` : p.mes_competencia;
+
+          return `
+            <tr class="hover:bg-teal-50/40">
+              <td class="py-2.5 px-3.5 font-extrabold text-slate-500">#${idx + 1}</td>
+              <td class="py-2.5 px-3.5 text-slate-700 font-medium">${periodoDetalhe}</td>
+              <td class="py-2.5 px-3.5"><strong class="text-slate-900">${p.sku_id}</strong><br><span class="text-slate-500 text-[11px]">${p.descricao}</span></td>
+              <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${p.especie} • ${p.curva_abc}</span></td>
+              <td class="py-2.5 px-3.5 text-emerald-800 font-medium">${fornMin}</td>
+              <td class="py-2.5 px-3.5 text-emerald-700 font-bold">${fmtBRLFull(p.menor_preco_pago)}</td>
+              <td class="py-2.5 px-3.5 text-rose-800 font-medium">${fornMax}</td>
+              <td class="py-2.5 px-3.5 text-rose-600 font-bold">${fmtBRLFull(p.maior_preco_pago)}</td>
+              <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold">+${p.variacao_percentual}%</span></td>
+              <td class="py-2.5 px-3.5 text-right font-extrabold text-orange-600">${fmtBRLFull(p.impacto_financeiro_sobrepreco)}</td>
+            </tr>
+          `;
+        }).join('');
+
+      // Tabela 4: Fornecedores Top 15 (com Desvio Padrão do Lead Time)
+      document.getElementById('tbodyFornecedores').innerHTML = [...fArr]
+        .sort((a, b) => (a.otif / a.total) - (b.otif / b.total))
+        .slice(0, 15)
+        .map(f => {
+          const atr = (f.atrasos.reduce((x,y)=>x+y,0)/f.total).toFixed(1);
+          const meanLt = f.lts.reduce((x,y)=>x+y,0)/f.total;
+          const stdLt = Math.sqrt(f.lts.reduce((acc, val) => acc + Math.pow(val - meanLt, 2), 0) / f.total).toFixed(1);
+          const parc = ((f.parciais/f.total)*100).toFixed(1);
+          const otf = ((f.otif/f.total)*100).toFixed(1);
+          return `
+            <tr class="hover:bg-teal-50/40">
+              <td class="py-2.5 px-3.5 font-bold text-slate-900">${f.fornecedor_id}</td>
+              <td class="py-2.5 px-3.5 font-semibold text-slate-800">${f.nome_fornecedor}</td>
+              <td class="py-2.5 px-3.5 text-slate-600">${f.categoria_principal}</td>
+              <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${f.homologacao_anvisa === 'Ativa' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800'}">${f.homologacao_anvisa}</span></td>
+              <td class="py-2.5 px-3.5 text-slate-600">${f.sla_contratado_dias} dias</td>
+              <td class="py-2.5 px-3.5 font-bold text-rose-600">+${atr} dias</td>
+              <td class="py-2.5 px-3.5 text-slate-600">&plusmn;${stdLt} dias</td>
+              <td class="py-2.5 px-3.5 font-bold text-amber-700">${parc}%</td>
+              <td class="py-2.5 px-3.5 font-extrabold ${Number(otf) < 70 ? 'text-rose-600' : 'text-teal-700'}">${otf}%</td>
+            </tr>
+          `;
+        }).join('');
+
+      // Tabela 5: Orçamento Top 15
+      document.getElementById('tbodyOrcamento').innerHTML = [...orcNov]
+        .sort((a, b) => (Number(a.valor_orcado) - Number(a.valor_realizado) - Number(a.valor_comprometido_oc)) - (Number(b.valor_orcado) - Number(b.valor_realizado) - Number(b.valor_comprometido_oc)))
+        .slice(0, 15)
+        .map(o => {
+          const saldo = Number(o.valor_orcado) - Number(o.valor_realizado) - Number(o.valor_comprometido_oc);
+          return `
+            <tr class="hover:bg-teal-50/40">
+              <td class="py-2.5 px-3.5 text-slate-600">${o.mes_competencia}</td>
+              <td class="py-2.5 px-3.5 font-bold text-slate-900">${o.centro_despesa}</td>
+              <td class="py-2.5 px-3.5 text-slate-700">${o.especie}</td>
+              <td class="py-2.5 px-3.5 text-right text-slate-700">${fmtBRLFull(o.valor_orcado)}</td>
+              <td class="py-2.5 px-3.5 text-right text-sky-700">${fmtBRLFull(o.valor_realizado)}</td>
+              <td class="py-2.5 px-3.5 text-right text-teal-700">${fmtBRLFull(o.valor_comprometido_oc)}</td>
+              <td class="py-2.5 px-3.5 text-right font-extrabold ${saldo < 0 ? 'text-rose-600' : 'text-emerald-700'}">${fmtBRLFull(saldo)}</td>
+            </tr>
+          `;
+        }).join('');
+
+      // SIMULADOR DE PREVISÃO ORÇAMENTÁRIA (R$ X para os próximos X dias)
+      const verbaPrevista = Number(document.getElementById('inputOrcPrevisto').value) || 0;
+      const diasHorizonte = Math.max(1, Number(document.getElementById('inputDiasOrc').value) || 30);
+      const consumoProjetadoPeriodo = consumoDiarioVal * diasHorizonte;
+      const comprometidoAberto = valOC + valSC;
+      const necessidadeTotal = consumoProjetadoPeriodo + comprometidoAberto;
+      const saldoProjetado = verbaPrevista - necessidadeTotal;
+      const pctUso = verbaPrevista > 0 ? ((necessidadeTotal / verbaPrevista) * 100).toFixed(1) : 100;
+
+      document.getElementById('lblDiasProj').innerText = diasHorizonte;
+      document.getElementById('valConsumoProj').innerText = fmtBRLFull(consumoProjetadoPeriodo);
+      document.getElementById('valComprometidoProj').innerText = fmtBRLFull(comprometidoAberto);
+      document.getElementById('valPctVerba').innerText = `${pctUso}%`;
+      document.getElementById('valorSaldoProjetado').innerText = fmtBRLFull(saldoProjetado);
+
+      const boxOrc = document.getElementById('boxResultadoOrc');
+      const badgeOrc = document.getElementById('badgeStatusOrc');
+      const tituloOrc = document.getElementById('tituloResultadoOrc');
+      const valSaldoEl = document.getElementById('valorSaldoProjetado');
+
+      if (saldoProjetado < 0) {
+        boxOrc.className = 'lg:col-span-7 p-4 rounded-xl border border-rose-300 bg-rose-50/70 flex flex-col justify-between gap-3';
+        badgeOrc.className = 'text-xs font-extrabold uppercase px-3 py-1 rounded-full bg-rose-600 text-white';
+        badgeOrc.innerText = 'ALERTA: ESTOURO ORÇAMENTÁRIO PROJETADO';
+        tituloOrc.className = 'text-base font-extrabold text-rose-900 mt-2';
+        tituloOrc.innerText = `A verba de ${fmtBRL(verbaPrevista)} NÃO suporta os próximos ${diasHorizonte} dias (déficit de ${fmtBRL(Math.abs(saldoProjetado))}).`;
+        valSaldoEl.className = 'text-xl font-extrabold text-rose-600';
+      } else {
+        boxOrc.className = 'lg:col-span-7 p-4 rounded-xl border border-emerald-300 bg-emerald-50/70 flex flex-col justify-between gap-3';
+        badgeOrc.className = 'text-xs font-extrabold uppercase px-3 py-1 rounded-full bg-emerald-600 text-white';
+        badgeOrc.innerText = 'DENTRO DO ORÇAMENTO PREVISTO';
+        tituloOrc.className = 'text-base font-extrabold text-emerald-950 mt-2';
+        tituloOrc.innerText = `A verba de ${fmtBRL(verbaPrevista)} cobre os próximos ${diasHorizonte} dias com folga de ${fmtBRL(saldoProjetado)}.`;
+        valSaldoEl.className = 'text-xl font-extrabold text-emerald-700';
+      }
+
+      rodarSimulador(filteredSkus);
+    }
+
+    function rodarSimulador(filteredSkus) {
+      const varDem = Number(document.getElementById('simDemanda').value);
+      const redPreco = Number(document.getElementById('simPreco').value);
+      const redLT = Number(document.getElementById('simLT').value);
+
+      document.getElementById('simDemandaVal').innerText = `${varDem >= 0 ? '+' : ''}${varDem}%`;
+      document.getElementById('simPrecoVal').innerText = `-${redPreco}%`;
+      document.getElementById('simLTVal').innerText = `-${redLT} dias`;
+
+      const consumoAnualCurvaA = filteredSkus.filter(s => s.curva_abc === 'A').reduce((a, s) => a + (s.consumo_medio_diario * 365 * s.custo_medio_unitario), 0);
+      const saving = consumoAnualCurvaA * (redPreco / 100);
+      const capGiro = filteredSkus.reduce((a, s) => a + (s.consumo_medio_diario * redLT * s.custo_medio_unitario), 0);
+      const skusRiscoSim = filteredSkus.filter(s => (s.estoque_atual / (s.consumo_medio_diario * (1 + varDem / 100))) <= 7).length;
+
+      document.getElementById('resSaving').innerText = fmtBRLFull(saving);
+      document.getElementById('resCapGiro').innerText = fmtBRLFull(capGiro);
+      document.getElementById('resSkusRisco').innerText = `${skusRiscoSim} SKUs`;
+    }
+
+    ['fEspecie', 'fCriticidade', 'fABC', 'fCentro', 'sliderDiasAlerta', 'simDemanda', 'simPreco', 'simLT', 'inputOrcPrevisto', 'inputDiasOrc'].forEach(id => {
+      document.getElementById(id).addEventListener('input', render);
+    });
+    document.getElementById('buscaSku').addEventListener('input', render);
+
+    init();
+  </script>
+</body>
+</html>
